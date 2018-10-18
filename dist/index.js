@@ -390,7 +390,7 @@ function sanitizeHtml(html, options, _recursing) {
         // which have their own collection of XSS vectors.
         result += text;
       } else {
-        var escaped = !options.disableEscap ? escapeHtml(value, true) : value;
+        var escaped = !options.disableEscape ? escapeHtml(value, true) : value;
         if (options.textFilter) {
           result += options.textFilter(escaped);
         } else {
