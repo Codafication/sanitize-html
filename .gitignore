@@ -1,6 +1,7 @@
 package-lock.json
 npm-debug.log
 *.DS_Store
+dist
 node_modules
 # We do not commit CSS, only LESS
 public/css/*.css
