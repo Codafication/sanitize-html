@@ -125,7 +125,7 @@ function sanitizeHtml(html, options, _recursing) {
     var transFun;
     if (typeof transform === 'function') {
       transFun = transform;
-    } else if (typeof transform === "string") {
+    } else if (typeof transform === 'string') {
       transFun = sanitizeHtml.simpleTransform(transform);
     }
     if (tag === '*') {
@@ -289,7 +289,7 @@ function sanitizeHtml(html, options, _recursing) {
                 var isRelativeUrl = parsed && parsed.host === null && parsed.protocol === null;
                 if (isRelativeUrl) {
                   // default value of allowIframeRelativeUrls is true unless allowIframeHostnames specified
-                  allowed = has(options, "allowIframeRelativeUrls") ? options.allowIframeRelativeUrls : !options.allowedIframeHostnames;
+                  allowed = has(options, 'allowIframeRelativeUrls') ? options.allowIframeRelativeUrls : !options.allowedIframeHostnames;
                 } else if (options.allowedIframeHostnames) {
                   allowed = options.allowedIframeHostnames.find(function (hostname) {
                     return hostname === parsed.hostname;
@@ -339,7 +339,7 @@ function sanitizeHtml(html, options, _recursing) {
             }
             if (a === 'style') {
               try {
-                var abstractSyntaxTree = postcss.parse(name + " {" + value + "}");
+                var abstractSyntaxTree = postcss.parse(name + ' {' + value + '}');
                 var filteredAST = filterCss(abstractSyntaxTree, options.allowedStyles);
 
                 value = stringifyStyleAttributes(filteredAST);
@@ -355,7 +355,7 @@ function sanitizeHtml(html, options, _recursing) {
             }
             result += ' ' + a;
             if (value.length) {
-              result += '="' + escapeHtml(value, true) + '"';
+              result += '="' + escapeHtml(value) + '"';
             }
           } else {
             delete frame.attribs[a];
@@ -363,9 +363,9 @@ function sanitizeHtml(html, options, _recursing) {
         });
       }
       if (options.selfClosing.indexOf(name) !== -1) {
-        result += " />";
+        result += ' />';
       } else {
-        result += ">";
+        result += '>';
         if (frame.innerText && !hasText && !options.textFilter) {
           result += frame.innerText;
         }
@@ -391,7 +391,7 @@ function sanitizeHtml(html, options, _recursing) {
         // which have their own collection of XSS vectors.
         result += text;
       } else {
-        var escaped = !options.disableEscape ? escapeHtml(text, true) : text;
+        var escaped = escapeHtml(text, options.escapes);
         if (options.textFilter) {
           result += options.textFilter(escaped);
         } else {
@@ -404,7 +404,6 @@ function sanitizeHtml(html, options, _recursing) {
       }
     },
     onclosetag: function onclosetag(name) {
-
       if (skipText) {
         skipTextDepth--;
         if (!skipTextDepth) {
@@ -444,7 +443,7 @@ function sanitizeHtml(html, options, _recursing) {
         return;
       }
 
-      result += "</" + name + ">";
+      result += '</' + name + '>';
     }
   }, options.parser);
   parser.write(html);
@@ -452,26 +451,54 @@ function sanitizeHtml(html, options, _recursing) {
 
   return result;
 
-  function escapeHtml(s, quote) {
+  function escapeHtml(s) {
+    var escapes = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : undefined;
+
     if (typeof s !== 'string') {
       s = s + '';
     }
     if (options.parser.decodeEntities) {
-      s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\>/g, '&gt;');
-      if (quote) {
-        s = s.replace(/\"/g, '&quot;');
+      if (escapes) {
+        if (escapes.includes('<')) {
+          s = s.replace(/</g, '&lt;');
+        }
+        if (escapes.includes('>')) {
+          s = s.replace(/\>/g, '&gt;');
+        }
+        if (escapes.includes('&')) {
+          s = s.replace(/&/g, '&amp;');
+        }
+        if (escapes.includes('"')) {
+          s = s.replace(/\"/g, '&quot;');
+        }
+      } else {
+        s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\>/g, '&gt;').replace(/\"/g, '&quot;');
+      }
+    } else {
+      // TODO: this is inadequate because it will pass `&0;`. This approach
+      // will not work, each & must be considered with regard to whether it
+      // is followed by a 100% syntactically valid entity or not, and escaped
+      // if it is not. If this bothers you, don't set parser.decodeEntities
+      // to false. (The default is true.)
+      if (escapes) {
+        if (escapes.includes('<')) {
+          s = s.replace(/</g, '&lt;');
+        }
+        if (escapes.includes('>')) {
+          s = s.replace(/\>/g, '&gt;');
+        }
+        if (escapes.includes('&')) {
+          s = s.replace(/&(?![a-zA-Z0-9#]{1,20};)/g, '&amp;');
+        }
+        if (escapes.includes('"')) {
+          s = s.replace(/\"/g, '&quot;');
+        }
+      } else {
+        s = s.replace(/&(?![a-zA-Z0-9#]{1,20};)/g, '&amp;') // Match ampersands not part of existing HTML entity
+        .replace(/</g, '&lt;').replace(/\>/g, '&gt;').replace(/\"/g, '&quot;');
       }
     }
-    // TODO: this is inadequate because it will pass `&0;`. This approach
-    // will not work, each & must be considered with regard to whether it
-    // is followed by a 100% syntactically valid entity or not, and escaped
-    // if it is not. If this bothers you, don't set parser.decodeEntities
-    // to false. (The default is true.)
-    s = s.replace(/&(?![a-zA-Z0-9#]{1,20};)/g, '&amp;') // Match ampersands not part of existing HTML entity
-    .replace(/</g, '&lt;').replace(/\>/g, '&gt;');
-    if (quote) {
-      s = s.replace(/\"/g, '&quot;');
-    }
+
     return s;
   }
 
